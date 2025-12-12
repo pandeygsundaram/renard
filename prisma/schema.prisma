@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(EMPLOYEE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workLogs     WorkLog[]
+  activities   Activity[]
+  teamMemberships TeamMember[]
+}
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members TeamMember[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  userId    String
+  teamId    String
+  role      TeamRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+model WorkLog {
+  id          String   @id @default(uuid())
+  userId      String
+  date        DateTime @default(now())
+  summary     String   @db.Text
+  rawData     Json?
+  source      String   // 'ai-chat', 'vscode', 'cli'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Activity {
+  id              String   @id @default(uuid())
+  userId          String
+  activityType    String   // 'code', 'chat', 'command'
+  content         String   @db.Text
+  metadata        Json?
+  timestamp       DateTime @default(now())
+  vectorId        String?  // Reference to Qdrant vector ID
+  processed       Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+  @@index([processed])
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
