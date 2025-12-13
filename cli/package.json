@@ -1,6 +1,6 @@
 {
   "name": "renard",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Track LLM CLI interactions",
   "type": "module",
   "bin": {

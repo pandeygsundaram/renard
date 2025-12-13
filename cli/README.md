@@ -1,6 +1,6 @@
-# DevGraph
+# Renard 🦊
 
-DevGraph is a developer tool that **tracks and logs your LLM interactions** across both **CLI tools** and **browsers**, giving you a unified view of how you work with AI.
+renard is a developer tool that **Logs your LLM interactions** across both **CLI tools** and **browsers**, giving you a unified view of how you work with AI.
 
 It captures:
 
@@ -15,28 +15,17 @@ It captures:
 
 - 🧠 Track LLM CLI usage (Claude, OpenAI, Gemini)
 - 📜 Structured session-based logging
-- 🧩 Works with any CLI via `devgraph run`
+- 🧩 Works with any CLI via `renard`
 - 📂 JSONL logs (easy to query with `jq`, `grep`, etc.)
 
 ---
-
-## 📦 Installation
-
-### Npm Package
-
-```bash
-git clone https://github.com/your-username/devgraph.git
-cd devgraph/cli
-npm install
-npm link
-```
 
 ### Hook supported LLM CLIs
 
 If you have official CLIs installed:
 
 ```bash
-devgraph install
+renard install
 ```
 
 Supported tools:
@@ -47,4 +36,4 @@ openai
 gemini
 ```
 
-DevGraph will automatically intercept and track their interactions.
+renard will automatically intercept and track their interactions.
