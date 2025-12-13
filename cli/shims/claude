@@ -1,3 +1,11 @@
 #!/bin/bash
-export RENARD_REAL_CMD="$(command -v claude.real)"
-exec renard "$@"
+REAL_CMD="$(command -v claude.real)"
+
+# Check if this is interactive mode (no --output-format flag)
+if [[ ! " $* " =~ " --output-format " ]]; then
+  # Interactive mode - use the passthrough logger
+  exec renard run "$REAL_CMD" "$@"
+else
+  # Non-interactive/scripted mode - just run directly
+  exec "$REAL_CMD" "$@"
+fi

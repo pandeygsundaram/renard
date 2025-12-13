@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { install, uninstall, status } from "../src/installer.js";
 import { runTracked } from "../src/runner.js";
+import { readLogs, clearLogs, getSessionMessages } from "../src/logger.js";
 
 const program = new Command();
 
@@ -31,37 +32,85 @@ program
 program
   .command("logs")
   .description("View collected LLM CLI logs")
-  .option("--tool <name>", "Filter by tool")
-  .option("--last <n>", "Show last N entries", "20")
+  .option("--tool <name>", "Filter by tool (claude, openai, gemini)")
+  .option("--last <n>", "Show last N sessions", "10")
+  .option("--full", "Show full conversation details")
+  .option("--session <id>", "Show specific session")
   .action(async (opts) => {
-    const fs = await import("fs");
-    const os = await import("os");
-    const path = await import("path");
+    const logs = readLogs({
+      tool: opts.tool,
+      last: opts.session ? undefined : Number(opts.last) * 10, // Get more entries to find N sessions
+      sessionId: opts.session,
+    });
 
-    const file = path.join(os.homedir(), ".renard", "logs.jsonl");
-    if (!fs.existsSync(file)) {
+    if (logs.length === 0) {
       console.log("No logs found");
       return;
     }
 
-    const lines = fs
-      .readFileSync(file, "utf8")
-      .trim()
-      .split("\n")
-      .slice(-Number(opts.last));
+    // Group by session
+    const sessions = {};
+    for (const log of logs) {
+      if (!sessions[log.sessionId]) {
+        sessions[log.sessionId] = [];
+      }
+      sessions[log.sessionId].push(log);
+    }
 
-    for (const line of lines) {
-      const entry = JSON.parse(line);
-      if (opts.tool && entry.tool !== opts.tool) continue;
+    // Get last N sessions
+    const sessionIds = Object.keys(sessions).slice(-Number(opts.last));
 
-      if (entry.type === "message") {
+    for (const sessionId of sessionIds) {
+      const sessionLogs = sessions[sessionId];
+      const start = sessionLogs.find((l) => l.type === "session_start");
+      const end = sessionLogs.find((l) => l.type === "session_end");
+      const messages = sessionLogs.filter((l) => l.type === "message");
+
+      if (!start) continue;
+
+      const date = new Date(start.timestamp);
+      const tool = start.tool || "unknown";
+      const success = end?.success ? "✓" : "✗";
+
+      console.log(`\n${"=".repeat(80)}`);
+      console.log(`${success} [${tool}] ${date.toLocaleString()}`);
+      console.log(`Session: ${sessionId.slice(0, 8)}`);
+      console.log(`Command: ${start.fullCommand || start.cmd}`);
+      console.log(`${"=".repeat(80)}`);
+
+      if (opts.full || opts.session) {
+        for (const msg of messages) {
+          const role = msg.role.toUpperCase().padEnd(10);
+          const preview =
+            msg.text.length > 500 && !opts.session
+              ? msg.text.slice(0, 500) + "..."
+              : msg.text;
+
+          console.log(`\n${role}: ${preview}`);
+        }
+      } else {
+        // Show summary
+        const userMsgs = messages.filter((m) => m.role === "user");
+        const assistantMsgs = messages.filter((m) => m.role === "assistant");
+
         console.log(
-          `[${new Date(entry.timestamp).toLocaleTimeString()}] ` +
-            `[${formatDate(entry)}] ` +
-            `[${entry.tool}] ${entry.role}: ${entry.text}`
+          `Messages: ${userMsgs.length} user, ${assistantMsgs.length} assistant`
         );
+
+        if (userMsgs.length > 0) {
+          const preview = userMsgs[0].text.slice(0, 100);
+          console.log(
+            `User: ${preview}${userMsgs[0].text.length > 100 ? "..." : ""}`
+          );
+        }
       }
     }
+
+    console.log(`\n${"=".repeat(80)}`);
+    console.log(`Total sessions shown: ${sessionIds.length}`);
+    console.log(
+      `\nTip: Use --full to see complete messages, --session <id> for specific session`
+    );
   });
 
 program
@@ -69,18 +118,7 @@ program
   .description("Clear all collected logs")
   .option("-y, --yes", "Skip confirmation")
   .action(async (opts) => {
-    const fs = await import("fs");
-    const os = await import("os");
-    const path = await import("path");
     const readline = await import("readline");
-
-    const dir = path.join(os.homedir(), ".renard");
-    const file = path.join(dir, "logs.jsonl");
-
-    if (!fs.existsSync(file)) {
-      console.log("No logs to clear");
-      return;
-    }
 
     if (!opts.yes) {
       const rl = readline.createInterface({
@@ -103,12 +141,30 @@ program
       }
     }
 
-    try {
-      fs.unlinkSync(file);
-      console.log("Logs cleared successfully");
-    } catch (e) {
-      console.error("Failed to clear logs:", e.message);
+    const cleared = clearLogs();
+    if (cleared) {
+      console.log("✓ Logs cleared successfully");
+    } else {
+      console.log("No logs to clear");
     }
+  });
+
+program
+  .command("export")
+  .description("Export logs to JSON file")
+  .option("--tool <name>", "Filter by tool")
+  .option("--output <file>", "Output file", "renard-export.json")
+  .action(async (opts) => {
+    const fs = await import("fs");
+    const logs = readLogs({ tool: opts.tool });
+
+    if (logs.length === 0) {
+      console.log("No logs to export");
+      return;
+    }
+
+    fs.writeFileSync(opts.output, JSON.stringify(logs, null, 2));
+    console.log(`✓ Exported ${logs.length} log entries to ${opts.output}`);
   });
 
 function printBanner() {
@@ -130,20 +186,3 @@ if (process.argv.length <= 2) {
 }
 
 program.parse();
-
-function formatDate(entry) {
-  // Prefer ISO date if available
-  if (entry.date) {
-    const d = new Date(entry.date);
-    if (!isNaN(d)) {
-      return d.toISOString().split("T")[0];
-    }
-  }
-
-  // Fallback to timestamp
-  if (entry.timestamp) {
-    return new Date(entry.timestamp).toISOString().split("T")[0];
-  }
-
-  return "unknown-date";
-}
