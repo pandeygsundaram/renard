@@ -5,31 +5,40 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(EMPLOYEE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  workLogs     WorkLog[]
-  activities   Activity[]
+  id              String       @id @default(uuid())
+  email           String       @unique
+  password        String
+  name            String
+  role            Role         @default(EMPLOYEE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  accountType     AccountType  @default(INDIVIDUAL)
+  apiKey          String?      @unique
+  createdBy       String?
+  isActive        Boolean      @default(true)
+  activities      Activity[]
   teamMemberships TeamMember[]
+  User            User?        @relation("UserToUser", fields: [createdBy], references: [id])
+  other_User      User[]       @relation("UserToUser")
+  workLogs        WorkLog[]
 }
 
 model Team {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   name        String
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  members TeamMember[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  isActive    Boolean      @default(true)
+  settings    Json?
+  type        TeamType     @default(PERSONAL)
+  Activity    Activity[]
+  members     TeamMember[]
+  WorkLog     WorkLog[]
 }
 
 model TeamMember {
@@ -38,42 +47,51 @@ model TeamMember {
   teamId    String
   role      TeamRole @default(MEMBER)
   joinedAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy String?
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, teamId])
+  @@index([teamId])
 }
 
 model WorkLog {
-  id          String   @id @default(uuid())
-  userId      String
-  date        DateTime @default(now())
-  summary     String   @db.Text
-  rawData     Json?
-  source      String   // 'ai-chat', 'vscode', 'cli'
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  userId        String
+  date          DateTime @db.Date
+  summary       String
+  source        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  activityCount Int      @default(0)
+  categories    Json?
+  teamId        String
+  totalHours    Float?
+  vectorIds     String[]
+  Team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  @@unique([userId, teamId, date])
   @@index([userId, date])
+  @@index([teamId, date])
 }
 
 model Activity {
-  id              String   @id @default(uuid())
-  userId          String
-  activityType    String   // 'code', 'chat', 'command'
-  content         String   @db.Text
-  metadata        Json?
-  timestamp       DateTime @default(now())
-  vectorId        String?  // Reference to Qdrant vector ID
-  processed       Boolean  @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  userId       String
+  activityType String
+  content      String
+  metadata     Json?
+  timestamp    DateTime @default(now())
+  vectorId     String?
+  processed    Boolean  @default(false)
+  teamId       String
+  Team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, timestamp])
   @@index([processed])
+  @@index([teamId, timestamp])
 }
 
 enum Role {
@@ -85,4 +103,14 @@ enum TeamRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum AccountType {
+  INDIVIDUAL
+  ORGANIZATION_MEMBER
+}
+
+enum TeamType {
+  PERSONAL
+  ORGANIZATION
 }
