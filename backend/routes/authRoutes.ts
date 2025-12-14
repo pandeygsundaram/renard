@@ -8,7 +8,7 @@ const router = Router();
 
 router.post(
   '/register',
-  authRateLimiter,
+  // authRateLimiter,
   [
     body('email').isEmail().withMessage('Please provide a valid email'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
@@ -19,7 +19,7 @@ router.post(
 
 router.post(
   '/login',
-  authRateLimiter,
+  // authRateLimiter,
   [
     body('email').isEmail().withMessage('Please provide a valid email'),
     body('password').notEmpty().withMessage('Password is required'),
