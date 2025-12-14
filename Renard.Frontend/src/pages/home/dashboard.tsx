@@ -6,16 +6,80 @@ import {
   Globe,
   Sparkles,
   Clock,
+  Brain,
+  Activity,
 } from "lucide-react";
+import { ActivityHeatmap } from "@/components/common/ActivityHeatmap";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 export default function DashboardPage() {
+  const [user, setUser] = useState<any>(null);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalActivities: 0,
+    totalHours: 0,
+    productivityScore: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  const API_URL = import.meta.env.VITE_SERVER;
+
+  useEffect(() => {
+    fetchUserData();
+    fetchActivities();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    }
+  };
+
+  const fetchActivities = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${API_URL}/activity?limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setActivities(response.data.activities || []);
+
+      // Calculate basic stats
+      const total = response.data.count || 0;
+      setStats({
+        totalActivities: total,
+        totalHours: total * 0.5, // Estimate
+        productivityScore: Math.min(100, total * 2),
+      });
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
+
   return (
     <DashboardLayout>
       {/* 1. Welcome Section */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Good Morning, John
+            {getGreeting()}, {user?.name || "there"}
           </h1>
           <p className="text-muted-foreground">
             Here is what Renard captured while you were working today.
@@ -35,24 +99,24 @@ export default function DashboardPage() {
       {/* 2. Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <StatsCard
-          title="Context Captured"
-          value="12,405"
-          label="tokens"
-          trend="+12%"
-          icon={<Brain className="w-5 h-5 text-purple-500" />}
-        />
-        <StatsCard
-          title="Productivity Score"
-          value="94"
-          label="/ 100"
-          trend="+5%"
+          title="Total Activities"
+          value={loading ? "..." : stats.totalActivities.toString()}
+          label="logged"
+          trend=""
           icon={<Activity className="w-5 h-5 text-primary" />}
         />
         <StatsCard
-          title="Time Saved"
-          value="2.5"
+          title="Productivity Score"
+          value={loading ? "..." : stats.productivityScore.toString()}
+          label="/ 100"
+          trend=""
+          icon={<Brain className="w-5 h-5 text-purple-500" />}
+        />
+        <StatsCard
+          title="Time Tracked"
+          value={loading ? "..." : stats.totalHours.toFixed(1)}
           label="hours"
-          trend="auto-fill"
+          trend=""
           icon={<Clock className="w-5 h-5 text-blue-500" />}
         />
       </div>
@@ -60,74 +124,44 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 3. Main Chart / Activity Area (Left 2/3) */}
         <div className="lg:col-span-2 space-y-8">
-          {/* CSS-Only Bar Chart */}
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-foreground">Activity Volume</h3>
-              <select className="bg-secondary text-sm rounded-md px-2 py-1 border border-border text-foreground focus:outline-none">
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
-              </select>
-            </div>
-
-            {/* Visual Chart Bars */}
-            <div className="h-48 flex items-end justify-between gap-2">
-              {[35, 45, 25, 60, 75, 50, 85].map((height, i) => (
-                <div
-                  key={i}
-                  className="w-full flex flex-col items-center gap-2 group"
-                >
-                  <div
-                    className="w-full bg-secondary hover:bg-primary/80 transition-all rounded-t-md relative group-hover:shadow-[0_0_15px_-3px_var(--color-primary)]"
-                    style={{ height: `${height}%` }}
-                  >
-                    <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded shadow border border-border transition-opacity">
-                      {height * 10} Logs
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    {["M", "T", "W", "T", "F", "S", "S"][i]}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Activity Heatmap */}
+          {user && (
+            <ActivityHeatmap
+              userId={user.id}
+              title="Your Activity (Last 90 Days)"
+            />
+          )}
 
           {/* Recent Context Logs */}
           <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center">
               <h3 className="font-semibold text-foreground">
-                Recent Context Logs
+                Recent Activities
               </h3>
               <button className="text-sm text-primary hover:underline">
                 View All
               </button>
             </div>
             <div className="divide-y divide-border">
-              <LogItem
-                source="vscode"
-                title="Modified auth-layout.tsx"
-                time="2 mins ago"
-                desc="Refactored the sidebar component to support mobile drawers."
-              />
-              <LogItem
-                source="terminal"
-                title="npm install framer-motion"
-                time="15 mins ago"
-                desc="Installed animation library for dashboard transitions."
-              />
-              <LogItem
-                source="chrome"
-                title="Researched: 'Tailwind v4 upgrade'"
-                time="1 hour ago"
-                desc="Read documentation on tailwindcss.com regarding new configuration."
-              />
-              <LogItem
-                source="vscode"
-                title="Git Commit: 'Fix dark mode toggle'"
-                time="2 hours ago"
-                desc="Fixed issue where sun icon was not visible in light mode."
-              />
+              {loading ? (
+                <div className="px-6 py-8 text-center text-muted-foreground">
+                  Loading activities...
+                </div>
+              ) : activities.length > 0 ? (
+                activities.map((activity) => (
+                  <LogItem
+                    key={activity.id}
+                    source={activity.activityType}
+                    title={activity.activityType}
+                    time={new Date(activity.timestamp).toLocaleString()}
+                    desc={activity.content}
+                  />
+                ))
+              ) : (
+                <div className="px-6 py-8 text-center text-muted-foreground">
+                  No activities yet. Start using Renard to see your work logs here.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -142,16 +176,18 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h4 className="font-semibold text-foreground mb-1">
-                  Renard Insight
+                  Getting Started
                 </h4>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  You've spent 40% of your time in{" "}
-                  <strong>auth-related files</strong> today. Would you like me
-                  to summarize the current authentication flow documentation?
+                  Start logging your activities using the Renard CLI or browser
+                  extension. Your work will be tracked and searchable here.
                 </p>
-                <button className="mt-3 text-xs bg-primary text-white px-3 py-1.5 rounded-md font-medium shadow-sm hover:bg-primary/90">
-                  Yes, summarize it
-                </button>
+                <a
+                  href="#"
+                  className="mt-3 inline-block text-xs bg-primary text-white px-3 py-1.5 rounded-md font-medium shadow-sm hover:bg-primary/90"
+                >
+                  View Setup Guide
+                </a>
               </div>
             </div>
           </div>
@@ -164,10 +200,6 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <button className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary text-sm font-medium text-foreground transition-colors flex items-center justify-between group">
                 <span>Search Knowledge Base</span>
-                <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
-              </button>
-              <button className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary text-sm font-medium text-foreground transition-colors flex items-center justify-between group">
-                <span>Configure Webhooks</span>
                 <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
               </button>
               <button className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary text-sm font-medium text-foreground transition-colors flex items-center justify-between group">
@@ -189,15 +221,11 @@ function StatsCard({ title, value, label, trend, icon }: any) {
     <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:border-primary/50 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div className="p-2 bg-secondary rounded-lg">{icon}</div>
-        <span
-          className={`text-xs font-medium px-2 py-1 rounded-full ${
-            trend === "auto-fill"
-              ? "bg-white text-black dark:bg-blue-900/30 dark:text-blue-600"
-              : "bg-white text-green-900  dark:text-green-800"
-          }`}
-        >
-          {trend}
-        </span>
+        {trend && (
+          <span className="text-xs font-medium px-2 py-1 rounded-full bg-secondary text-secondary-foreground">
+            {trend}
+          </span>
+        )}
       </div>
       <div className="flex items-baseline gap-1">
         <h3 className="text-3xl font-bold text-foreground">{value}</h3>
@@ -243,8 +271,3 @@ function LogItem({ source, title, time, desc }: any) {
     </div>
   );
 }
-
-// Helper to avoid import errors in the example
-import { Brain as BrainIcon, Activity as ActivityIcon } from "lucide-react";
-const Brain = BrainIcon;
-const Activity = ActivityIcon;
