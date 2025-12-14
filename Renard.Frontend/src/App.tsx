@@ -11,6 +11,9 @@ import { ProtectedRoute } from "./components/auth/protectedRoute";
 
 import DashboardPage from "./pages/home/dashboard";
 import { PublicRoute } from "./components/auth/publicRoute";
+import ExtensionLoginPage from "./components/auth/extension-login";
+import ExtensionSignupPage from "./components/auth/extension-signup";
+import ExtensionSuccess from "./components/auth/extension-success";
 
 function App() {
   return (
@@ -22,6 +25,9 @@ function App() {
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/extension-login" element={<ExtensionLoginPage />} />
+        <Route path="/extension-signup" element={<ExtensionSignupPage />} />
+        <Route path="/extension-success" element={<ExtensionSuccess />} />
       </Route>
 
       {/* --- Protected Routes (Dashboard) --- */}

@@ -3,7 +3,9 @@ const AUTH_KEY = "renard_auth";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "AUTH_LOGIN") {
-    startLogin();
+    chrome.tabs.create({
+      url: "http://localhost:5173/extension-login?source=extension",
+    });
     return;
   }
 
@@ -32,18 +34,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-function startLogin() {
-  chrome.tabs.create({
-    url: "https://auth.renard.ai/extension-login",
-  });
-}
+/**
+ * ✅ RECEIVE TOKEN FROM WEB APP
+ */
+chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "AUTH_SUCCESS" && msg.token) {
+    chrome.storage.local.set(
+      {
+        [AUTH_KEY]: {
+          token: msg.token,
+          user: msg.user,
+          loggedInAt: Date.now(),
+        },
+      },
+      () => {
+        notifyAuth();
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.runtime.onMessageExternal.addListener((msg) => {
-    if (msg.type === "AUTH_SUCCESS") {
-      chrome.storage.local.set({ [AUTH_KEY]: msg.token }, notifyAuth);
-    }
-  });
+        // Open extension popup automatically
+        chrome.action.openPopup?.();
+
+        sendResponse({ ok: true });
+      }
+    );
+  }
+
+  return true;
 });
 
 function notifyAuth() {
