@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import prisma from '../config/database';
-import { storeActivityVector, searchSimilarActivities } from '../services/vectorService';
+import { storeActivityVector, searchSimilarActivities, getKnowledgeGraph } from '../services/vectorService';
 
 interface CreateActivityBody {
   activityType: string;
@@ -256,6 +256,316 @@ export const getActivityById = async (req: Request, res: Response): Promise<void
     res.status(200).json({ activity });
   } catch (error) {
     console.error('Get activity error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get activity heatmap data for a user
+ * Returns count of worklogs and activities per date for heatmap visualization
+ */
+export const getUserActivityHeatmap = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const { teamId, startDate, endDate } = req.query;
+
+    // Build date filter
+    const dateFilter: any = {};
+    if (startDate) {
+      dateFilter.gte = new Date(startDate as string);
+    }
+    if (endDate) {
+      dateFilter.lte = new Date(endDate as string);
+    }
+
+    // Get WorkLogs grouped by date
+    const workLogs = await prisma.workLog.findMany({
+      where: {
+        userId,
+        ...(teamId && { teamId: teamId as string }),
+        ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+      },
+      select: {
+        date: true,
+        activityCount: true,
+        totalHours: true,
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    });
+
+    // Get Activity counts grouped by date
+    const activities = await prisma.activity.groupBy({
+      by: ['userId'],
+      where: {
+        userId,
+        ...(teamId && { teamId: teamId as string }),
+        ...(Object.keys(dateFilter).length > 0 && {
+          timestamp: dateFilter,
+        }),
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Format heatmap data
+    const heatmapData = workLogs.map(log => ({
+      date: log.date.toISOString().split('T')[0],
+      count: log.activityCount,
+      hours: log.totalHours || 0,
+    }));
+
+    res.status(200).json({
+      userId,
+      heatmapData,
+      totalDays: heatmapData.length,
+      totalActivities: workLogs.reduce((sum, log) => sum + log.activityCount, 0),
+      totalHours: workLogs.reduce((sum, log) => sum + (log.totalHours || 0), 0),
+    });
+  } catch (error) {
+    console.error('Get user activity heatmap error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get activity data for all team members
+ * Used for admin to see all team members' activity
+ */
+export const getTeamMembersActivity = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { teamId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Verify user has access to this team
+    const userId = (req as any).user.id;
+    const userRole = (req as any).user.role;
+
+    const teamMember = await prisma.teamMember.findFirst({
+      where: {
+        userId,
+        teamId,
+      },
+    });
+
+    if (!teamMember && userRole !== 'ADMIN') {
+      res.status(403).json({ error: 'Access denied to this team' });
+      return;
+    }
+
+    // Build date filter
+    const dateFilter: any = {};
+    if (startDate) {
+      dateFilter.gte = new Date(startDate as string);
+    }
+    if (endDate) {
+      dateFilter.lte = new Date(endDate as string);
+    }
+
+    // Get all team members
+    const members = await prisma.teamMember.findMany({
+      where: {
+        teamId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Get WorkLogs for each member
+    const membersActivity = await Promise.all(
+      members.map(async (member) => {
+        const workLogs = await prisma.workLog.findMany({
+          where: {
+            userId: member.userId,
+            teamId,
+            ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+          },
+          select: {
+            date: true,
+            activityCount: true,
+            totalHours: true,
+          },
+          orderBy: {
+            date: 'asc',
+          },
+        });
+
+        const heatmapData = workLogs.map(log => ({
+          date: log.date.toISOString().split('T')[0],
+          count: log.activityCount,
+          hours: log.totalHours || 0,
+        }));
+
+        return {
+          user: member.user,
+          role: member.role,
+          heatmapData,
+          totalActivities: workLogs.reduce((sum, log) => sum + log.activityCount, 0),
+          totalHours: workLogs.reduce((sum, log) => sum + (log.totalHours || 0), 0),
+        };
+      })
+    );
+
+    res.status(200).json({
+      teamId,
+      members: membersActivity,
+      totalMembers: membersActivity.length,
+    });
+  } catch (error) {
+    console.error('Get team members activity error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Admin endpoint to query member work using embeddings
+ * Example: "What work did John do in the last 3 days?"
+ */
+export const queryMemberWork = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userRole = (req as any).user.role;
+    const requesterId = (req as any).user.id;
+    const { query, teamId, userId, limit = 20 } = req.body;
+
+    if (!query || !teamId) {
+      res.status(400).json({ error: 'Query and teamId are required' });
+      return;
+    }
+
+    // Check if user is admin or team admin/owner
+    const teamMember = await prisma.teamMember.findFirst({
+      where: {
+        userId: requesterId,
+        teamId,
+      },
+    });
+
+    const isTeamAdmin = teamMember && (teamMember.role === 'ADMIN' || teamMember.role === 'OWNER');
+    const isSystemAdmin = userRole === 'ADMIN';
+
+    if (!isSystemAdmin && !isTeamAdmin) {
+      res.status(403).json({ error: 'Admin access required to query member work' });
+      return;
+    }
+
+    // Build filter for Qdrant search
+    const filter: any = {
+      must: [
+        {
+          key: 'teamId',
+          match: { value: teamId },
+        },
+      ],
+    };
+
+    // If specific user is specified, filter by userId
+    if (userId) {
+      filter.must.push({
+        key: 'userId',
+        match: { value: userId },
+      });
+    }
+
+    // Search using embeddings
+    const results = await searchSimilarActivities(
+      query,
+      parseInt(limit as any),
+      filter
+    );
+
+    // Fetch full activity details and WorkLog summaries
+    const activityIds = results.map(r => r.id);
+    const activities = await prisma.activity.findMany({
+      where: {
+        id: { in: activityIds },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    });
+
+    // Also get recent WorkLogs for context
+    const workLogs = await prisma.workLog.findMany({
+      where: {
+        teamId,
+        ...(userId && { userId }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+      take: 10,
+    });
+
+    // Merge activities with similarity scores
+    const resultsWithActivities = results.map(result => {
+      const activity = activities.find(a => a.id === result.id);
+      return {
+        score: result.score,
+        activity,
+      };
+    });
+
+    res.status(200).json({
+      query,
+      results: resultsWithActivities,
+      recentWorkLogs: workLogs,
+      count: resultsWithActivities.length,
+    });
+  } catch (error) {
+    console.error('Query member work error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get knowledge graph of topics and their connections
+ * Returns most common words/topics from user's activities
+ */
+export const getActivityKnowledgeGraph = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { teamId, limit = 50 } = req.query;
+
+    const graphData = await getKnowledgeGraph(
+      userId,
+      teamId as string | undefined,
+      parseInt(limit as string)
+    );
+
+    res.status(200).json({
+      graph: graphData,
+      totalNodes: graphData.nodes.length,
+      totalEdges: graphData.edges.length,
+    });
+  } catch (error) {
+    console.error('Get knowledge graph error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

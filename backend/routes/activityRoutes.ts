@@ -5,6 +5,10 @@ import {
   getActivities,
   searchActivities,
   getActivityById,
+  getUserActivityHeatmap,
+  getTeamMembersActivity,
+  queryMemberWork,
+  getActivityKnowledgeGraph,
 } from '../controllers/activityController';
 import { authenticate } from '../middleware/auth';
 
@@ -30,6 +34,27 @@ router.get('/', getActivities);
 
 // Search activities using semantic search
 router.get('/search', searchActivities);
+
+// Get knowledge graph of topics
+router.get('/knowledge-graph', getActivityKnowledgeGraph);
+
+// Get activity heatmap data for a specific user
+router.get('/heatmap/:userId', getUserActivityHeatmap);
+
+// Get activity data for all team members (admin/team owner/admin only)
+router.get('/team/:teamId/members', getTeamMembersActivity);
+
+// Admin endpoint to query member work using embeddings
+router.post(
+  '/query-member-work',
+  [
+    body('query').notEmpty().withMessage('Query is required'),
+    body('teamId').notEmpty().withMessage('Team ID is required'),
+    body('userId').optional().isString(),
+    body('limit').optional().isInt(),
+  ],
+  queryMemberWork
+);
 
 // Get a single activity by ID
 router.get('/:id', getActivityById);
