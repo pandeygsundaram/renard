@@ -20,7 +20,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.tabs.create({
       url: "http://localhost:5173/extension-login?source=extension",
     });
-    return;
+    return; 
   }
 
   if (msg.type === "AUTH_LOGOUT") {

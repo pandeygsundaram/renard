@@ -32,20 +32,18 @@ export default function ExtensionLoginPage() {
         password,
       });
 
-      const { auth, user, team } = data;
-      const { token, apiKey } = auth;
+      const { token, apiKey, user, team } = data;
+
+      if (!token || !team?.id) {
+        throw new Error("Invalid auth payload");
+      }
 
       /* ───────────── CLI AUTH ───────────── */
       if (isCLI && port) {
         await fetch(`http://localhost:${port}/auth/callback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token,
-            apiKey,
-            user,
-            team,
-          }),
+          body: JSON.stringify({ token, apiKey, user, team }),
         });
 
         navigate("/extension-success");
