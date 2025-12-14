@@ -7,7 +7,7 @@ dotenv.config();
 
 const app: Express = express();
 
-const allowedOrigins = ["https://renard.live", "https://www.renard.live"];
+const allowedOrigins = ["https://renard.live", "https://www.renard.live" , "http://localhost:5173"];
 
 // Allow chrome-extension://<id>
 const isChromeExtension = (origin?: string) =>
