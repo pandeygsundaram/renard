@@ -1,6 +1,13 @@
 const STORAGE_KEY = "ai_chat_messages_v1";
 const AUTH_KEY = "renard_auth";
 
+const API_BASE = "https://api.renard.live/api";
+const FLUSH_INTERVAL = 15 * 60 * 1000; // 15 minutes
+
+console.log("[Renard] Background worker started");
+
+/* -------------------- MESSAGE HANDLING -------------------- */
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "AUTH_LOGIN") {
     chrome.tabs.create({
@@ -34,9 +41,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-/**
- * ✅ RECEIVE TOKEN FROM WEB APP
- */
+/* -------------------- AUTH HANDSHAKE -------------------- */
+
 chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
   if (msg.type === "AUTH_SUCCESS" && msg.token) {
     chrome.storage.local.set(
@@ -49,10 +55,7 @@ chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
       },
       () => {
         notifyAuth();
-
-        // Open extension popup automatically
         chrome.action.openPopup?.();
-
         sendResponse({ ok: true });
       }
     );
@@ -68,9 +71,12 @@ function notifyAuth() {
   });
 }
 
+/* -------------------- STORAGE -------------------- */
+
 function storeMessages(msg, sendResponse) {
   chrome.storage.local.get(STORAGE_KEY, (res) => {
     const arr = res[STORAGE_KEY] || [];
+
     arr.push({
       site: msg.site,
       timestamp: Date.now(),
@@ -83,3 +89,74 @@ function storeMessages(msg, sendResponse) {
     });
   });
 }
+
+/* -------------------- FLUSH PIPELINE -------------------- */
+
+async function flushToServer() {
+  chrome.storage.local.get([STORAGE_KEY, AUTH_KEY], async (res) => {
+    const auth = res[AUTH_KEY];
+    const entries = res[STORAGE_KEY] || [];
+
+    if (!auth || !auth.token) {
+      console.log("[Renard] Not authenticated, skipping flush");
+      return;
+    }
+
+    if (entries.length === 0) {
+      console.log("[Renard] No data to flush");
+      return;
+    }
+
+    // 🔁 Transform extension data → backend schema
+    const messages = [];
+
+    for (const entry of entries) {
+      for (const m of entry.messages) {
+        messages.push({
+          activityType: "chat",
+          content: m.text,
+          metadata: {
+            source: "browser-extension",
+            site: entry.site,
+            role: m.role,
+            capturedAt: entry.timestamp,
+          },
+        });
+      }
+    }
+
+    if (messages.length === 0) return;
+
+    console.log(`[Renard] Flushing ${messages.length} messages`);
+
+    try {
+      const res = await fetch(`${API_BASE}/messages/batch`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      // ✅ Clear only after successful upload
+      chrome.storage.local.set({ [STORAGE_KEY]: [] }, () => {
+        console.log("[Renard] Flush successful, local buffer cleared");
+        chrome.runtime.sendMessage({ type: "STORAGE_UPDATED" });
+      });
+    } catch (err) {
+      console.error("[Renard] Flush failed, will retry", err);
+    }
+  });
+}
+
+/* -------------------- SCHEDULER -------------------- */
+
+setInterval(flushToServer, FLUSH_INTERVAL);
+
+// Also flush when extension starts
+flushToServer();
