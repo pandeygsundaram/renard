@@ -36,7 +36,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex">
+    // 1. Root Container: h-screen and overflow-hidden ensures the body doesn't scroll
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -47,20 +48,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out md:translate-x-0 md:static md:inset-auto ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`
+          fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border 
+          transform transition-transform duration-200 ease-in-out
+          md:relative md:translate-x-0 
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
       >
-        <div className="h-screen flex flex-col fixed">
+        {/* 2. Inner Sidebar: h-full makes it fill the aside, 'flex-col' for layout */}
+        <div className="h-full flex flex-col">
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-border">
-            <div className="w-8 h-8  rounded-lg flex items-center justify-center text-primary-foreground font-bold mr-3">
-              <img src={logo} />
+          <div className="h-16 flex-none flex items-center px-6 border-b border-border">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-primary-foreground font-bold mr-3 overflow-hidden">
+              <img
+                src={logo}
+                alt="Renard Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
             <span className="font-bold text-lg text-foreground">Renard</span>
           </div>
 
-          {/* Nav Links */}
+          {/* Nav Links - flex-1 and overflow-y-auto allows ONLY the links to scroll if the screen is short */}
           <div className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
             {navItems.map((item) => (
               <a
@@ -77,7 +86,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </a>
             ))}
 
-            {/* Integration Status (Mini Widget in Sidebar) */}
+            {/* Integration Status */}
             <div className="mt-8 px-3">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Active Sources
@@ -99,15 +108,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Globe className="w-4 h-4" /> Chrome
                   </div>
-                  <div className="w-2 h-2 rounded-full bg-red-500"></div>{" "}
-                  {/* Disconnected example */}
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* User Profile Footer */}
-          <div className="p-4 border-t border-border">
+          {/* User Profile Footer - flex-none ensures it stays pinned to bottom */}
+          <div className="p-4 border-t border-border flex-none">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground font-bold border border-border">
                 JD
@@ -128,10 +136,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="h-16 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between px-4 md:px-8">
+      {/* 3. Main Content Wrapper: flex-1 takes remaining width, h-full fills height */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header - Stays Fixed at Top */}
+        <header className="h-16 flex-none border-b border-border bg-background/80 backdrop-blur-sm z-30 flex items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -160,7 +168,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* 4. Scrollable Page Content: This is the ONLY part that scrolls */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto">{children}</div>
         </main>

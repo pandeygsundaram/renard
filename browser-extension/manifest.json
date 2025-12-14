@@ -65,5 +65,8 @@
       "resources": ["inject.js"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "externally_connectable": {
+    "matches": ["http://localhost:5173/*"]
+  }
 }
