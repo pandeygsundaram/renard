@@ -137,7 +137,6 @@ async function flushToServer() {
         headers: {
           Authorization: `Bearer ${auth.token}`,
           "Content-Type": "application/json",
-          "x-api-key": auth.apiKey, // ✅ optional but future-proof
         },
         body: JSON.stringify({ messages }),
       });
