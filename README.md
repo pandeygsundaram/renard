@@ -1,10 +1,10 @@
-# DevTrack AI
+# Renard
 
 A productivity tracking platform for engineering teams that automatically captures, summarizes, and preserves developer work context from multiple sources.
 
 ## What It Does
 
-DevTrack AI helps teams track and understand developer productivity by:
+Renard helps teams track and understand developer productivity by:
 
 - **Capturing work context** from AI assistants (ChatGPT, Claude, Gemini), VS Code, and CLI tools
 - **Generating AI-powered summaries** of daily/weekly work for each developer
@@ -15,12 +15,14 @@ DevTrack AI helps teams track and understand developer productivity by:
 ## Tech Stack
 
 **Backend:**
+
 - Node.js + TypeScript + Express
 - PostgreSQL (Supabase) + Prisma ORM 7
 - Qdrant Vector Database
 - JWT Authentication
 
 **Planned:**
+
 - Frontend: React/Next.js
 - MCP Server for VS Code integration
 - AI integrations (OpenAI/Anthropic APIs)
@@ -49,6 +51,7 @@ npm install
 ```
 
 Create `.env` file with:
+
 ```env
 DATABASE_URL="your-postgres-url"
 DIRECT_URL="your-postgres-direct-url"
@@ -58,6 +61,7 @@ JWT_SECRET="your-secret-key"
 ```
 
 Run migrations and start:
+
 ```bash
 npm run prisma:migrate
 npm run dev
