@@ -15,7 +15,7 @@ export default function ExtensionLoginPage() {
   const [error, setError] = useState("");
 
   const source = searchParams.get("source"); // cli | extension | null
-  const port = searchParams.get("port"); // CLI callback port
+  const port = searchParams.get("port");
   const isCLI = source === "cli";
 
   const API_URL = import.meta.env.VITE_SERVER;
@@ -27,80 +27,62 @@ export default function ExtensionLoginPage() {
     setError("");
 
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const { data } = await axios.post(`${API_URL}/auth/login`, {
         email,
         password,
       });
 
-      const { token, user } = response.data;
+      const { auth, user, team } = data;
+      const { token, apiKey } = auth;
 
-      // CLI AUTH FLOW
+      /* ───────────── CLI AUTH ───────────── */
       if (isCLI && port) {
-        try {
-          await fetch(`http://localhost:${port}/auth/callback`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token, user }),
-          });
+        await fetch(`http://localhost:${port}/auth/callback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            apiKey,
+            user,
+            team,
+          }),
+        });
 
-          navigate("/extension-success");
-
-          setTimeout(() => {
-            window.close();
-          }, 2000);
-        } catch (e) {
-          console.error("Failed to send auth to CLI", e);
-          setError("Failed to complete CLI authentication");
-        }
-
+        navigate("/extension-success");
+        setTimeout(() => window.close(), 2000);
         return;
       }
 
-      /**
-       * ─────────────────────────────
-       * 2️⃣ EXTENSION AUTH FLOW
-       * ─────────────────────────────
-       */
+      /* ───────────── EXTENSION AUTH ───────────── */
       if (window.chrome?.runtime?.sendMessage && EXTENSION_ID) {
         window.chrome.runtime.sendMessage(
           EXTENSION_ID,
           {
             type: "AUTH_SUCCESS",
             token,
+            apiKey,
             user,
+            team,
           },
           () => {
             setSuccess(true);
-
-            setTimeout(() => {
-              window.close();
-            }, 2000);
+            setTimeout(() => window.close(), 2000);
           }
         );
-
         return;
       }
 
-      /**
-       * ─────────────────────────────
-       * 3️⃣ NORMAL WEB LOGIN
-       * ─────────────────────────────
-       */
+      /* ───────────── WEB LOGIN ───────────── */
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Invalid email or password.");
+      setError(err?.response?.data?.message || "Invalid credentials");
     } finally {
       setIsLoading(false);
     }
   }
 
-  /**
-   * ─────────────────────────────
-   * SUCCESS UI
-   * ─────────────────────────────
-   */
   if (success) {
     return (
       <ExtensionLayout
@@ -117,11 +99,6 @@ export default function ExtensionLoginPage() {
     );
   }
 
-  /**
-   * ─────────────────────────────
-   * LOGIN FORM
-   * ─────────────────────────────
-   */
   return (
     <ExtensionLayout
       title={isCLI ? "Authorize Renard CLI" : "Connect Renard Extension"}
@@ -132,7 +109,6 @@ export default function ExtensionLoginPage() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        {/* Context Indicator */}
         <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg border">
           <div className="p-2 bg-background rounded-md border">
             {isCLI ? (
@@ -151,7 +127,6 @@ export default function ExtensionLoginPage() {
           </div>
         </div>
 
-        {/* Email */}
         <div>
           <label className="text-sm font-medium">Email</label>
           <input
@@ -163,7 +138,6 @@ export default function ExtensionLoginPage() {
           />
         </div>
 
-        {/* Password */}
         <div>
           <label className="text-sm font-medium">Password</label>
           <input
@@ -185,16 +159,6 @@ export default function ExtensionLoginPage() {
           Authorize
         </button>
       </form>
-
-      <div className="mt-6 text-center text-sm">
-        <span className="text-muted-foreground">New to Renard? </span>
-        <a
-          href={`/extension-signup?source=${source || "extension"}`}
-          className="text-primary font-medium hover:underline"
-        >
-          Create account
-        </a>
-      </div>
     </ExtensionLayout>
   );
 }

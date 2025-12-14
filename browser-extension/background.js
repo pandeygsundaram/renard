@@ -2,7 +2,7 @@ const STORAGE_KEY = "ai_chat_messages_v1";
 const AUTH_KEY = "renard_auth";
 
 const API_BASE = "https://api.renard.live/api";
-const FLUSH_INTERVAL = 15 * 60 * 1000; // 15 minutes
+const FLUSH_INTERVAL = 2 * 60 * 1000; // 15 minutes
 
 console.log("[Renard] Background worker started");
 
@@ -11,7 +11,7 @@ console.log("[Renard] Background worker started");
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "AUTH_LOGIN") {
     chrome.tabs.create({
-      url: "https://renard.live/extension-login?source=extension",
+      url: "http://localhost:5173/extension-login?source=extension",
     });
     return;
   }
@@ -44,16 +44,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 /* -------------------- AUTH HANDSHAKE -------------------- */
 
 chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "AUTH_SUCCESS" && msg.token) {
+  if (msg.type === "AUTH_SUCCESS" && msg.token && msg.team?.id) {
     chrome.storage.local.set(
       {
         [AUTH_KEY]: {
           token: msg.token,
+          apiKey: msg.apiKey,
           user: msg.user,
+          team: msg.team,
           loggedInAt: Date.now(),
         },
       },
       () => {
+        console.log("[Renard] Auth stored for team:", msg.team.id);
         notifyAuth();
         chrome.action.openPopup?.();
         sendResponse({ ok: true });
@@ -97,23 +100,22 @@ async function flushToServer() {
     const auth = res[AUTH_KEY];
     const entries = res[STORAGE_KEY] || [];
 
-    if (!auth || !auth.token) {
+    if (!auth?.token || !auth?.team?.id) {
       console.log("[Renard] Not authenticated, skipping flush");
       return;
     }
 
     if (entries.length === 0) {
-      console.log("[Renard] No data to flush");
       return;
     }
 
-    // 🔁 Transform extension data → backend schema
     const messages = [];
 
     for (const entry of entries) {
       for (const m of entry.messages) {
         messages.push({
           activityType: "chat",
+          teamId: auth.team.id, // ✅ REQUIRED
           content: m.text,
           metadata: {
             source: "browser-extension",
@@ -135,6 +137,7 @@ async function flushToServer() {
         headers: {
           Authorization: `Bearer ${auth.token}`,
           "Content-Type": "application/json",
+          "x-api-key": auth.apiKey, // ✅ optional but future-proof
         },
         body: JSON.stringify({ messages }),
       });
@@ -143,9 +146,9 @@ async function flushToServer() {
         throw new Error(`HTTP ${res.status}`);
       }
 
-      // ✅ Clear only after successful upload
+      // ✅ Clear buffer ONLY after success
       chrome.storage.local.set({ [STORAGE_KEY]: [] }, () => {
-        console.log("[Renard] Flush successful, local buffer cleared");
+        console.log("[Renard] Flush successful, buffer cleared");
         chrome.runtime.sendMessage({ type: "STORAGE_UPDATED" });
       });
     } catch (err) {
@@ -158,5 +161,5 @@ async function flushToServer() {
 
 setInterval(flushToServer, FLUSH_INTERVAL);
 
-// Also flush when extension starts
+// Flush once on startup (safe)
 flushToServer();
