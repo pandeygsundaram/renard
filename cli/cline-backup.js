@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { fileURLToPath } from 'url';
+
+// ESM __dirname / __filename fix
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configuration
 const CLINE_DATA_DIR = path.join(
   os.homedir(),
   '.config/Code/User/globalStorage/saoudrizwan.claude-dev/tasks'
 );
+
 const STATE_FILE = '.cline-backup-state.json';
 const DEFAULT_OUTPUT_DIR = './cline-backups';
 
@@ -16,9 +22,11 @@ const DEFAULT_OUTPUT_DIR = './cline-backups';
 const args = process.argv.slice(2);
 const forceBackup = args.includes('--force');
 const outputDirIndex = args.indexOf('--output');
-const OUTPUT_DIR = outputDirIndex >= 0 && args[outputDirIndex + 1] 
-  ? args[outputDirIndex + 1] 
-  : DEFAULT_OUTPUT_DIR;
+
+const OUTPUT_DIR =
+  outputDirIndex >= 0 && args[outputDirIndex + 1]
+    ? args[outputDirIndex + 1]
+    : DEFAULT_OUTPUT_DIR;
 
 // Utility functions
 function loadState() {
@@ -50,18 +58,17 @@ function formatTimestamp(ts) {
 }
 
 function getBackupFilename() {
-  const now = new Date();
-  const timestamp = now.toISOString()
+  return new Date()
+    .toISOString()
     .replace(/:/g, '-')
     .replace(/\..+/, '')
     .replace('T', '-');
-  return timestamp;
 }
 
 function formatMessageForMarkdown(msg) {
   const timestamp = formatTimestamp(msg.ts);
   let content = '';
-  
+
   switch (msg.say) {
     case 'text':
       content = `**User**: ${msg.text}`;
@@ -88,163 +95,106 @@ function formatMessageForMarkdown(msg) {
         content = msg.text;
       }
   }
-  
+
   return content ? `[${timestamp}] ${content}\n\n` : '';
 }
 
 function readTaskData(taskPath) {
-  const data = {
-    metadata: null,
-    uiMessages: null,
-    apiHistory: null
+  const readJson = (file) =>
+    fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+
+  return {
+    metadata: readJson(path.join(taskPath, 'task_metadata.json')),
+    uiMessages: readJson(path.join(taskPath, 'ui_messages.json')),
+    apiHistory: readJson(path.join(taskPath, 'api_conversation_history.json'))
   };
-  
-  try {
-    const metadataPath = path.join(taskPath, 'task_metadata.json');
-    if (fs.existsSync(metadataPath)) {
-      data.metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-    }
-  } catch (error) {
-    console.error(`Error reading metadata: ${error.message}`);
-  }
-  
-  try {
-    const uiMessagesPath = path.join(taskPath, 'ui_messages.json');
-    if (fs.existsSync(uiMessagesPath)) {
-      data.uiMessages = JSON.parse(fs.readFileSync(uiMessagesPath, 'utf8'));
-    }
-  } catch (error) {
-    console.error(`Error reading ui_messages: ${error.message}`);
-  }
-  
-  try {
-    const apiHistoryPath = path.join(taskPath, 'api_conversation_history.json');
-    if (fs.existsSync(apiHistoryPath)) {
-      data.apiHistory = JSON.parse(fs.readFileSync(apiHistoryPath, 'utf8'));
-    }
-  } catch (error) {
-    console.error(`Error reading api_conversation_history: ${error.message}`);
-  }
-  
-  return data;
 }
 
 function generateMarkdown(tasks) {
   let markdown = '# Cline Chat Backup\n\n';
   markdown += `Backup Date: ${new Date().toLocaleString()}\n\n`;
-  markdown += `Total Tasks: ${tasks.length}\n\n`;
-  markdown += '---\n\n';
-  
+  markdown += `Total Tasks: ${tasks.length}\n\n---\n\n`;
+
   for (const task of tasks) {
     markdown += `## Task: ${task.taskId}\n\n`;
-    markdown += `**Started**: ${formatTimestamp(parseInt(task.taskId))}\n\n`;
-    
-    if (task.data.metadata) {
-      const model = task.data.metadata.model_usage?.[0];
-      if (model) {
-        markdown += `**Model**: ${model.model_id} (${model.mode} mode)\n\n`;
-      }
+    markdown += `**Started**: ${formatTimestamp(Number(task.taskId))}\n\n`;
+
+    const model = task.data.metadata?.model_usage?.[0];
+    if (model) {
+      markdown += `**Model**: ${model.model_id} (${model.mode} mode)\n\n`;
     }
-    
+
     markdown += '### Conversation\n\n';
-    
-    if (task.data.uiMessages && Array.isArray(task.data.uiMessages)) {
+
+    if (Array.isArray(task.data.uiMessages)) {
       for (const msg of task.data.uiMessages) {
-        const formatted = formatMessageForMarkdown(msg);
-        if (formatted) {
-          markdown += formatted;
-        }
+        markdown += formatMessageForMarkdown(msg);
       }
     } else {
       markdown += '*No messages found*\n\n';
     }
-    
+
     markdown += '\n---\n\n';
   }
-  
+
   return markdown;
 }
 
 async function main() {
   console.log('🔍 Cline Chat Backup Tool\n');
-  
-  // Check if Cline data directory exists
+
   if (!fs.existsSync(CLINE_DATA_DIR)) {
-    console.error(`❌ Error: Cline data directory not found at: ${CLINE_DATA_DIR}`);
+    console.error(`❌ Cline data directory not found: ${CLINE_DATA_DIR}`);
     process.exit(1);
   }
-  
-  // Create output directory
+
   if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     console.log(`📁 Created output directory: ${OUTPUT_DIR}`);
   }
-  
-  // Load state
-  const state = forceBackup ? { backedUpTasks: [], lastBackupTimestamp: null } : loadState();
-  console.log(`📋 Previously backed up tasks: ${state.backedUpTasks.length}`);
-  
-  // Get all task directories
+
+  const state = forceBackup
+    ? { backedUpTasks: [], lastBackupTimestamp: null }
+    : loadState();
+
   const taskDirs = fs.readdirSync(CLINE_DATA_DIR)
-    .filter(name => {
-      const fullPath = path.join(CLINE_DATA_DIR, name);
-      return fs.statSync(fullPath).isDirectory();
-    })
+    .filter(d => fs.statSync(path.join(CLINE_DATA_DIR, d)).isDirectory())
     .sort();
-  
-  console.log(`📂 Total tasks found: ${taskDirs.length}`);
-  
-  // Filter new tasks
-  const newTasks = forceBackup 
-    ? taskDirs 
-    : taskDirs.filter(taskId => !state.backedUpTasks.includes(taskId));
-  
-  if (newTasks.length === 0) {
-    console.log('✅ No new tasks to backup. All caught up!');
+
+  const newTasks = forceBackup
+    ? taskDirs
+    : taskDirs.filter(id => !state.backedUpTasks.includes(id));
+
+  if (!newTasks.length) {
+    console.log('✅ No new tasks to backup.');
     return;
   }
-  
-  console.log(`✨ New tasks to backup: ${newTasks.length}\n`);
-  
-  // Process tasks
-  const tasksData = [];
-  for (const taskId of newTasks) {
-    console.log(`Processing task: ${taskId}...`);
-    const taskPath = path.join(CLINE_DATA_DIR, taskId);
-    const data = readTaskData(taskPath);
-    tasksData.push({ taskId, data });
-  }
-  
-  // Generate backup files
-  const backupFilename = getBackupFilename();
-  
-  // JSON backup
-  const jsonPath = path.join(OUTPUT_DIR, `cline-backup-${backupFilename}.json`);
-  const jsonData = {
-    backupDate: new Date().toISOString(),
-    totalTasks: tasksData.length,
-    tasks: tasksData
-  };
-  fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
-  console.log(`\n💾 JSON backup saved: ${jsonPath}`);
-  
-  // Markdown backup
-  const mdPath = path.join(OUTPUT_DIR, `cline-backup-${backupFilename}.md`);
-  const markdown = generateMarkdown(tasksData);
-  fs.writeFileSync(mdPath, markdown);
-  console.log(`📄 Markdown backup saved: ${mdPath}`);
-  
-  // Update state
+
+  const tasksData = newTasks.map(taskId => ({
+    taskId,
+    data: readTaskData(path.join(CLINE_DATA_DIR, taskId))
+  }));
+
+  const filename = getBackupFilename();
+
+  fs.writeFileSync(
+    path.join(OUTPUT_DIR, `cline-backup-${filename}.json`),
+    JSON.stringify({ backupDate: new Date().toISOString(), tasks: tasksData }, null, 2)
+  );
+
+  fs.writeFileSync(
+    path.join(OUTPUT_DIR, `cline-backup-${filename}.md`),
+    generateMarkdown(tasksData)
+  );
+
   state.backedUpTasks.push(...newTasks);
   state.lastBackupTimestamp = Date.now();
   saveState(state);
-  
-  console.log(`\n✅ Backup complete! Backed up ${newTasks.length} task(s).`);
-  console.log(`📊 Total tasks tracked: ${state.backedUpTasks.length}`);
+
+  console.log(`✅ Backup complete. ${newTasks.length} task(s) saved.`);
 }
 
-// Run the script
-main().catch(error => {
-  console.error('❌ Error:', error.message);
+main().catch(err => {
+  console.error('❌ Error:', err);
   process.exit(1);
 });
