@@ -52,22 +52,44 @@ export default function ExtensionLoginPage() {
       }
 
       /* ───────────── EXTENSION AUTH ───────────── */
-      if (window.chrome?.runtime?.sendMessage && EXTENSION_ID) {
-        window.chrome.runtime.sendMessage(
-          EXTENSION_ID,
-          {
+
+      const extensionAPI =
+        (window as any).browser?.runtime || (window as any).chrome?.runtime;
+
+      if (extensionAPI && EXTENSION_ID) {
+        try {
+          const payload = {
             type: "AUTH_SUCCESS",
             token,
             apiKey,
             user,
             team,
-          },
-          () => {
-            setSuccess(true);
-            setTimeout(() => window.close(), 2000);
+          };
+
+          // Firefox (Promise-based)
+          if ((window as any).browser?.runtime?.sendMessage) {
+            await (window as any).browser.runtime.sendMessage(
+              EXTENSION_ID,
+              payload
+            );
           }
-        );
-        return;
+          // Chrome (callback-based)
+          else if ((window as any).chrome?.runtime?.sendMessage) {
+            (window as any).chrome.runtime.sendMessage(
+              EXTENSION_ID,
+              payload,
+              () => {}
+            );
+          }
+
+          setSuccess(true);
+          setTimeout(() => window.close(), 2000);
+          return;
+        } catch (err) {
+          console.error("Extension auth failed", err);
+          setError("Failed to authorize extension");
+          return;
+        }
       }
 
       /* ───────────── WEB LOGIN ───────────── */
