@@ -1,7 +1,7 @@
 {
   "name": "renard",
-  "version": "1.0.3",
-  "description": "Track LLM CLI interactions",
+  "version": "1.0.4",
+  "description": "Sync LLM CLI interactions",
   "type": "module",
   "bin": {
     "renard": "./bin/renard.js"
@@ -32,6 +32,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/pandeygsundaram/devGraph"
+    "url": "https://github.com/pandeygsundaram/renard"
   }
 }

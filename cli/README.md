@@ -1,6 +1,6 @@
 # Renard 🦊
 
-renard is a developer tool that **Logs your LLM interactions** across both **CLI tools** and **browsers**, giving you a unified view of how you work with AI.
+Renard is a developer tool that **Logs your LLM interactions** across both **CLI tools** and **browsers**, giving you a unified view of how you work with AI.
 
 It captures:
 
@@ -13,7 +13,7 @@ It captures:
 
 ## ✨ Features
 
-- 🧠 Track LLM CLI usage (Claude, OpenAI, Gemini)
+- 🧠 Sync LLM CLI usage (Claude, OpenAI, Gemini)
 - 📜 Structured session-based logging
 - 🧩 Works with any CLI via `renard`
 - 📂 JSONL logs (easy to query with `jq`, `grep`, etc.)
@@ -24,9 +24,8 @@ It captures:
 
 ### Hook supported LLM CLIs
 
-If you have official CLIs installed:
-
 ```bash
+sudo npm install -g renard
 renard install
 ```
 
@@ -46,3 +45,15 @@ renard will automatically intercept and track their interactions.
   - Claude: `~/.claude/projects/`
   - Gemini: `~/.gemini/tmp/*/chats/`
 - **OpenAI**: Standard output capture (may be enhanced in future versions)
+
+### ⚠️ Important Privacy & Data Safety Note
+
+Renard is built with strict data filtering on the backend.
+
+- ✅ Only developer-context data (prompts, responses, tool metadata, and session structure) is accepted
+
+- ❌ Any non-developer, sensitive, or unrelated data is automatically rejected
+
+- 🧠 A dedicated validation layer understands the context of incoming data and enforces these rules before storage
+
+This ensures that Renard remains safe, privacy-aware, and developer-focused by design.

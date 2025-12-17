@@ -12,7 +12,7 @@ const program = new Command();
 
 program
   .name("renard")
-  .description("Track LLM CLI interactions")
+  .description("Sync LLM CLI interactions")
   .version("0.1.0");
 
 program
