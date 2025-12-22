@@ -1,11 +1,14 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import { validationResult } from 'express-validator';
-import prisma from '../config/database';
-import { generateToken } from '../utils/jwt';
-import { RegisterBody, LoginBody } from '../types';
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import { validationResult } from "express-validator";
+import prisma from "../config/database";
+import { generateToken } from "../utils/jwt";
+import { RegisterBody, LoginBody } from "../types";
 
-export const register = async (req: Request<{}, {}, RegisterBody>, res: Response): Promise<void> => {
+export const register = async (
+  req: Request<{}, {}, RegisterBody>,
+  res: Response
+): Promise<void> => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -20,14 +23,16 @@ export const register = async (req: Request<{}, {}, RegisterBody>, res: Response
     });
 
     if (existingUser) {
-      res.status(400).json({ error: 'User already exists' });
+      res.status(400).json({ error: "User already exists" });
       return;
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generate API key
-    const apiKey = `key_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const apiKey = `key_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(7)}`;
 
     // Create user with API key
     const user = await prisma.user.create({
@@ -51,8 +56,8 @@ export const register = async (req: Request<{}, {}, RegisterBody>, res: Response
     const team = await prisma.team.create({
       data: {
         name: `${name}'s Workspace`,
-        description: 'Personal workspace',
-        type: 'PERSONAL',
+        description: "Personal workspace",
+        type: "PERSONAL",
         isActive: true,
       },
     });
@@ -62,7 +67,7 @@ export const register = async (req: Request<{}, {}, RegisterBody>, res: Response
       data: {
         userId: user.id,
         teamId: team.id,
-        role: 'OWNER',
+        role: "OWNER",
       },
     });
 
@@ -72,12 +77,12 @@ export const register = async (req: Request<{}, {}, RegisterBody>, res: Response
       role: user.role,
     });
 
-    console.log('[Register] User object:', JSON.stringify(user, null, 2));
-    console.log('[Register] Team object:', JSON.stringify(team, null, 2));
-    console.log('[Register] API Key:', user.apiKey);
+    console.log("[Register] User object:", JSON.stringify(user, null, 2));
+    console.log("[Register] Team object:", JSON.stringify(team, null, 2));
+    console.log("[Register] API Key:", user.apiKey);
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: "User registered successfully",
       user,
       token,
       apiKey: user.apiKey,
@@ -87,12 +92,15 @@ export const register = async (req: Request<{}, {}, RegisterBody>, res: Response
       },
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
-export const login = async (req: Request<{}, {}, LoginBody>, res: Response): Promise<void> => {
+export const login = async (
+  req: Request<{}, {}, LoginBody>,
+  res: Response
+): Promise<void> => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -107,14 +115,14 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response): Pro
     });
 
     if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
@@ -124,7 +132,7 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response): Pro
       include: {
         team: true,
       },
-      orderBy: { joinedAt: 'asc' },
+      orderBy: { joinedAt: "asc" },
     });
 
     const token = generateToken({
@@ -134,7 +142,7 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response): Pro
     });
 
     res.status(200).json({
-      message: 'Login successful',
+      message: "Login successful",
       user: {
         id: user.id,
         email: user.email,
@@ -143,21 +151,26 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response): Pro
       },
       token,
       apiKey: user.apiKey,
-      team: teamMembership?.team ? {
-        id: teamMembership.team.id,
-        name: teamMembership.team.name,
-      } : null,
+      team: teamMembership?.team
+        ? {
+            id: teamMembership.team.id,
+            name: teamMembership.team.name,
+          }
+        : null,
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
-export const getProfile = async (req: Request, res: Response): Promise<void> => {
+export const getProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
-
+    const userPayload = (req as any).user;
+    const userId = userPayload?.id || userPayload?.userId;
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -171,13 +184,13 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
     });
 
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: "User not found" });
       return;
     }
 
     res.status(200).json({ user });
   } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Get profile error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

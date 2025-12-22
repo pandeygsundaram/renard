@@ -19,6 +19,7 @@ import ExtensionSignupPage from "./components/auth/extension-signup";
 import ExtensionSuccess from "./components/auth/extension-success";
 import PrivacyPolicy from "./pages/legal/privacy";
 import TermsPage from "./pages/legal/terms";
+import OAuthCallback from "./components/auth/googlecallback";
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/auth/callback" element={<OAuthCallback />} />
       </Route>
 
       {/* --- Protected Routes (Dashboard) --- */}

@@ -9,7 +9,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(""); // To show simple error messages
+  const [error, setError] = useState("");
+  const GOOGLE_AUTH_URL = `${import.meta.env.VITE_SERVER}/auth/google`;
 
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_SERVER;
@@ -153,6 +154,7 @@ export default function LoginPage() {
           <Button
             disabled={isLoading}
             variant="outline"
+            onClick={() => (window.location.href = GOOGLE_AUTH_URL)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full text-foreground"
           >
             <svg

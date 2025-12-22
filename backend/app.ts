@@ -2,6 +2,8 @@ import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import routes from "./routes";
+import passport from "passport";
+import "./config/passport";
 
 dotenv.config();
 
@@ -42,7 +44,7 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use(passport.initialize());
 app.use("/api", routes);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

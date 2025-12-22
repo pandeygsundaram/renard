@@ -1,5 +1,16 @@
 import { Request } from 'express';
 
+// Extend Express Request type globally
+declare global {
+  namespace Express {
+    interface User {
+      id: string;
+      email: string;
+      role: string;
+    }
+  }
+}
+
 export interface AuthRequest extends Request {
   user?: {
     id: string;
@@ -20,8 +31,10 @@ export interface LoginBody {
 }
 
 export interface ActivityData {
-  userId: string;
+  userId: string; 
   activityType: 'code' | 'chat' | 'command';
   content: string;
   metadata?: any;
 }
+
+
