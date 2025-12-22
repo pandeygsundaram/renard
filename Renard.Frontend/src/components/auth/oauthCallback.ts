@@ -52,4 +52,5 @@ export default function OAuthCallback() {
 
     completeLogin();
   }, [navigate]);
+  return null;
 }

@@ -19,7 +19,7 @@ import ExtensionSignupPage from "./components/auth/extension-signup";
 import ExtensionSuccess from "./components/auth/extension-success";
 import PrivacyPolicy from "./pages/legal/privacy";
 import TermsPage from "./pages/legal/terms";
-import OAuthCallback from "./components/auth/googlecallback";
+import OAuthCallback from "./components/auth/oauthCallback";
 
 function App() {
   return (
