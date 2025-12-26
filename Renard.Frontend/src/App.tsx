@@ -27,6 +27,7 @@ import FeedbackPage from "./components/common/feedback";
 import AboutPage from "./components/home(401)/about";
 import ScrollToTop from "./components/common/scrollToTop";
 import BlogPage from "./components/home(401)/blogs";
+import { PricingPage } from "./pages/legal/pricing";
 
 function App() {
   return (
@@ -64,6 +65,7 @@ function App() {
             element={<IntegrationsPage />}
           />
           <Route path="/dashboard/settings" element={<SettingsPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
         </Route>
       </Routes>
     </>

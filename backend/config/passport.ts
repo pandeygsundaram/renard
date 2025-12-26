@@ -110,6 +110,9 @@ passport.use(
           token,
           authProvider: user.authProvider,
           hasSetPassword: user.hasSetPassword,
+          plan: user.plan,
+          maxSeats: user.maxSeats,
+          maxTeams: user.maxTeams,
         } as any);
       } catch (err) {
         return done(err, undefined);
@@ -208,6 +211,9 @@ passport.use(
           token,
           authProvider: user.authProvider,
           hasSetPassword: user.hasSetPassword,
+          plan: user.plan,
+          maxSeats: user.maxSeats,
+          maxTeams: user.maxTeams,
         } as any);
       } catch (err) {
         return done(err, undefined);

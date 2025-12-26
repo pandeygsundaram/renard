@@ -32,6 +32,15 @@ model User {
   User                 User?        @relation("UserToUser", fields: [createdBy], references: [id])
   other_User           User[]       @relation("UserToUser")
   workLogs             WorkLog[]
+
+  plan           PlanType           @default(FREE)
+  subscriptionId String? // Dodo Subscription ID
+  customerId     String? // Dodo Customer ID
+  subStatus      SubscriptionStatus @default(INCOMPLETE)
+
+  // --- Limits (Controlled by Billing) ---
+  maxTeams Int @default(1) // Free = 1
+  maxSeats Int @default(1) // Free = 1 (Self only), Pro = 3+
 }
 
 model Team {
@@ -101,6 +110,14 @@ model Activity {
   @@index([teamId, timestamp])
 }
 
+model WebhookEvent {
+  id        String   @id @default(uuid())
+  eventId   String   @unique // The ID sent by Dodo
+  type      String
+  status    String // "PROCESSED", "FAILED"
+  createdAt DateTime @default(now())
+}
+
 enum Role {
   ADMIN
   EMPLOYEE
@@ -120,4 +137,17 @@ enum AccountType {
 enum TeamType {
   PERSONAL
   ORGANIZATION
+}
+
+enum PlanType {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
 }

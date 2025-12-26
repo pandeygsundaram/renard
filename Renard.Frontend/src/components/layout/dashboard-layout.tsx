@@ -11,10 +11,13 @@ import {
   Terminal,
   Code2,
   Globe,
+  Sparkles,
+  Crown,
 } from "lucide-react";
 import { ModeToggle } from "@/components/common/mode-toggle";
 import logo from "@/assets/logo-Photoroom.png";
 import { useNavigate, Link } from "react-router-dom";
+import { SubscriptionSuccess } from "../common/subscription-success";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -47,6 +50,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return user.name.substring(0, 2).toUpperCase();
   };
 
+  // Check plan status (default to free if not present)
+  const isPro = user?.plan === "PRO";
+
   const currentPath = window.location.pathname;
 
   const navItems = [
@@ -77,8 +83,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   return (
-    // 1. Root Container: h-screen and overflow-hidden ensures the body doesn't scroll
     <div className="flex h-screen bg-background overflow-hidden">
+      <SubscriptionSuccess />
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -96,7 +102,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
-        {/* 2. Inner Sidebar: h-full makes it fill the aside, 'flex-col' for layout */}
         <div className="h-full flex flex-col">
           {/* Logo */}
           <div className="h-16 flex-none flex items-center px-6 border-b border-border">
@@ -110,7 +115,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <span className="font-bold text-lg text-foreground">Renard</span>
           </div>
 
-          {/* Nav Links - flex-1 and overflow-y-auto allows ONLY the links to scroll if the screen is short */}
+          {/* Nav Links */}
           <div className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
             {navItems.map((item) => (
               <Link
@@ -145,7 +150,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
 
-          {/* User Profile Footer - flex-none ensures it stays pinned to bottom */}
+          {/* User Profile Footer */}
           <div className="p-4 border-t border-border flex-none">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground font-bold border border-border">
@@ -171,9 +176,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </aside>
 
-      {/* 3. Main Content Wrapper: flex-1 takes remaining width, h-full fills height */}
+      {/* Main Content Wrapper */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header - Stays Fixed at Top */}
+        {/* Header */}
         <header className="h-16 flex-none border-b border-border bg-background/80 backdrop-blur-sm z-30 flex items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-4">
             <button
@@ -195,15 +200,33 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Plan Status Button */}
+            {!isPro ? (
+              <button
+                onClick={() => navigate("/pricing")}
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary text-white text-xs font-bold hover:shadow-lg hover:shadow-orange-500/20 transition-all hover:-translate-y-0.5"
+              >
+                <Sparkles className="w-3 h-3" />
+                Upgrade to Pro
+              </button>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold">
+                <Crown className="w-3 h-3" />
+                Pro Plan
+              </div>
+            )}
+
+            {/* Notifications */}
             <button className="relative text-muted-foreground hover:text-foreground transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full border-2 border-background"></span>
             </button>
+
             <ModeToggle />
           </div>
         </header>
 
-        {/* 4. Scrollable Page Content: This is the ONLY part that scrolls */}
+        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto">{children}</div>
         </main>

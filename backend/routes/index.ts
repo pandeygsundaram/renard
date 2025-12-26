@@ -5,6 +5,7 @@ import messageRoutes from "./messageRoutes";
 import processingRoutes from "./processingRoutes";
 import teamRoutes from "./teamRoutes";
 import feedbackRoutes from "./feedbackRoutes";
+import paymentRoutes from "./payments";
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use("/messages", messageRoutes);
 router.use("/processing", processingRoutes);
 router.use("/teams", teamRoutes);
 router.use("/feedback", feedbackRoutes);
+router.use("/payment", paymentRoutes);
 
 router.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "DevTrack AI API is running" });

@@ -90,11 +90,29 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
   (req, res) => {
-    const { token, authProvider, hasSetPassword, id, email, role } =
-      req.user as any;
+    const {
+      token,
+      authProvider,
+      hasSetPassword,
+      id,
+      email,
+      role,
+      plan,
+      maxSeats,
+      maxTeams,
+    } = req.user as any;
 
     const userJson = encodeURIComponent(
-      JSON.stringify({ id, email, role, authProvider, hasSetPassword })
+      JSON.stringify({
+        id,
+        email,
+        role,
+        authProvider,
+        hasSetPassword,
+        plan,
+        maxSeats,
+        maxTeams,
+      })
     );
 
     res.redirect(
@@ -113,11 +131,29 @@ router.get(
   "/github/callback",
   passport.authenticate("github", { session: false }),
   (req, res) => {
-    const { token, authProvider, hasSetPassword, id, email, role } =
-      req.user as any;
+    const {
+      token,
+      authProvider,
+      hasSetPassword,
+      id,
+      email,
+      role,
+      plan,
+      maxSeats,
+      maxTeams,
+    } = req.user as any;
 
     const userJson = encodeURIComponent(
-      JSON.stringify({ id, email, role, authProvider, hasSetPassword })
+      JSON.stringify({
+        id,
+        email,
+        role,
+        authProvider,
+        hasSetPassword,
+        plan,
+        maxSeats,
+        maxTeams,
+      })
     );
 
     res.redirect(

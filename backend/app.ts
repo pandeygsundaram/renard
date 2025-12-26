@@ -5,6 +5,7 @@ import routes from "./routes";
 import passport from "passport";
 import "./config/passport";
 import connectDB from "./config/mongoConn";
+import paymentRoutes from "./routes/payments"; // Import payment routes separately
 
 dotenv.config();
 
@@ -32,7 +33,7 @@ app.use(
       }
 
       if (isChromeExtension(origin)) {
-        return callback(null, true); // Make sure this is 'true', not 'origin'
+        return callback(null, true);
       }
 
       return callback(new Error(`CORS blocked for origin: ${origin}`), false);
@@ -43,10 +44,21 @@ app.use(
   })
 );
 
+// CRITICAL: Register webhook route BEFORE express.json()
+// This allows us to get the raw body for signature verification
+app.use(
+  "/api/payment/webhook",
+  express.raw({ type: "application/json" }),
+  paymentRoutes
+);
+
+// Now register standard JSON parsing for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 connectDB();
+
+// Register all other routes
 app.use("/api", routes);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
