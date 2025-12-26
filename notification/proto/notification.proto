@@ -10,7 +10,7 @@ message EmailRequest {
   string userId = 1;
   string email = 2;
   string templateType = 3;
-  string dataJson = 4; // We will pass the 'data' object as a JSON string for flexibility
+  string dataJson = 4;
 }
 
 message EmailResponse {

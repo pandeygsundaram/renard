@@ -23,6 +23,7 @@ import OAuthCallback from "./components/auth/oauthCallback";
 import VerifyEmailPage from "./components/auth/verifyEmail";
 import ForgotPasswordPage from "./components/auth/forgotPassword";
 import ResetPasswordPage from "./components/auth/resetPassword";
+import FeedbackPage from "./components/common/feedback";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
       <Route path="/extension-success" element={<ExtensionSuccess />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsPage />} />
+      <Route path="/feedback" element={<FeedbackPage />} />
 
       {/* --- Guest Only Routes (Login/Signup) --- */}
       {/* If logged in, these redirect to /dashboard */}
@@ -42,7 +44,6 @@ function App() {
         <Route path="/verify" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-
         <Route path="/auth/callback" element={<OAuthCallback />} />
       </Route>
 

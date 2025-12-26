@@ -10,4 +10,5 @@ export type TemplateMap = {
     name: string;
   };
   RESET_PASSWORD: { link: string };
+  FEEDBACK: {};
 };

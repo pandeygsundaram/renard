@@ -44,9 +44,26 @@ export default function LoginPage() {
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login failed", err);
+
+      const responseData = err.response?.data;
+
+      // --- NEW LOGIC: Check for unverified account ---
+      // If the backend says isVerified is false, redirect to OTP page
+      if (responseData && responseData.isVerified === false) {
+        await axios.post(`${API_URL}/auth/resend-otp`, { email });
+        navigate("/verify", {
+          state: {
+            email: email, // Pass the email the user just typed
+            shouldResend: true, // Tell the OTP page to trigger a resend immediately
+          },
+        });
+        return; // Stop execution so we don't show the error message
+      }
+      // -----------------------------------------------
+
       // specific error message from backend or fallback
       const errorMessage =
-        err.response?.data?.message || "Invalid email or password.";
+        responseData?.message || "Invalid email or password.";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -69,7 +86,7 @@ export default function LoginPage() {
           <div className="grid gap-4">
             {/* Error Message Display */}
             {error && (
-              <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+              <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md animate-in fade-in slide-in-from-top-1">
                 {error}
               </div>
             )}
@@ -103,6 +120,7 @@ export default function LoginPage() {
                   Password
                 </label>
                 <button
+                  type="button" // Prevent form submission
                   onClick={() => {
                     navigate("/forgot-password");
                   }}

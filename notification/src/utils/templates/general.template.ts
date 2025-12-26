@@ -1,7 +1,7 @@
 import { TemplateMap } from "./types";
 
 export const generalTemplates: {
-  [K in "OTP" | "WELCOME" | "RESET_PASSWORD"]: (
+  [K in "OTP" | "WELCOME" | "RESET_PASSWORD" | "FEEDBACK"]: (
     data: TemplateMap[K & keyof TemplateMap]
   ) => {
     subject: string;
@@ -21,5 +21,10 @@ export const generalTemplates: {
   RESET_PASSWORD: ({ link }) => ({
     subject: "Reset Your Password",
     body: `Click the following link to reset your password: ${link}\n\nIf you didn't request this, ignore the email.`,
+  }),
+
+  FEEDBACK: ({}) => ({
+    subject: "Thank you so much for your feedback on renard",
+    body: `We really appreciate your feedback and look forward for building the best.`,
   }),
 };
