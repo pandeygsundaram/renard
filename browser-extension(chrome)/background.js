@@ -5,7 +5,7 @@
 const STORAGE_KEY = "ai_chat_messages_v1";
 const AUTH_KEY = "renard_auth";
 
-const API_BASE = "https://api.renard.live/api";
+const API_BASE = "http://localhost:5000";
 const FLUSH_INTERVAL = 1 * 60 * 1000; // 2 minutes
 const CHUNK_SIZE = 50; // 🔒 SAFE batch size
 

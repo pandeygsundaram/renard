@@ -9,7 +9,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(""); // To show simple error messages
+  const [error, setError] = useState("");
+  const GOOGLE_AUTH_URL = `${import.meta.env.VITE_SERVER}/auth/google`;
+  const GITHUB_AUTH_URL = `${import.meta.env.VITE_SERVER}/auth/github`;
 
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_SERVER;
@@ -42,9 +44,26 @@ export default function LoginPage() {
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login failed", err);
+
+      const responseData = err.response?.data;
+
+      // --- NEW LOGIC: Check for unverified account ---
+      // If the backend says isVerified is false, redirect to OTP page
+      if (responseData && responseData.isVerified === false) {
+        await axios.post(`${API_URL}/auth/resend-otp`, { email });
+        navigate("/verify", {
+          state: {
+            email: email, // Pass the email the user just typed
+            shouldResend: true, // Tell the OTP page to trigger a resend immediately
+          },
+        });
+        return; // Stop execution so we don't show the error message
+      }
+      // -----------------------------------------------
+
       // specific error message from backend or fallback
       const errorMessage =
-        err.response?.data?.message || "Invalid email or password.";
+        responseData?.message || "Invalid email or password.";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -67,7 +86,7 @@ export default function LoginPage() {
           <div className="grid gap-4">
             {/* Error Message Display */}
             {error && (
-              <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+              <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md animate-in fade-in slide-in-from-top-1">
                 {error}
               </div>
             )}
@@ -100,12 +119,15 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
-                <a
-                  href="#"
+                <button
+                  type="button" // Prevent form submission
+                  onClick={() => {
+                    navigate("/forgot-password");
+                  }}
                   className="text-xs text-primary hover:text-primary/80 font-medium"
                 >
                   Forgot password?
-                </a>
+                </button>
               </div>
               <input
                 id="password"
@@ -144,7 +166,8 @@ export default function LoginPage() {
         <div className="grid grid-cols-2 gap-4">
           <Button
             disabled={isLoading}
-            variant="outline" // Assuming you have variants set up in your Button component, otherwise use className
+            onClick={() => (window.location.href = GITHUB_AUTH_URL)}
+            variant="outline"
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full text-foreground"
           >
             <Github className="mr-2 h-4 w-4" />
@@ -153,6 +176,7 @@ export default function LoginPage() {
           <Button
             disabled={isLoading}
             variant="outline"
+            onClick={() => (window.location.href = GOOGLE_AUTH_URL)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full text-foreground"
           >
             <svg
